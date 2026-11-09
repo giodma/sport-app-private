@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HTSport Mobile App</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #050505;
+            color: #ffffff;
+            margin: 0;
+            padding: 10px;
+        }
+
+        /* BOX CANALI LIVE IN ALTO (BORDO VERDE IDENTICO AL SITO) */
+        .live-channels-box {
+            border: 1px solid #1db954;
+            background-color: #0b0f0c;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .box-header {
+            color: #1db954;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .box-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        .channels-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        /* INTESTAZIONE DEI CAMPIONATI (ROSSA CON BORDO) */
+        .league-header {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #ff453a;
+            text-transform: uppercase;
+            border-left: 4px solid #ff453a;
+            padding-left: 8px;
+            margin: 20px 0 10px 0;
+        }
+        
+        .league-header[data-length="long"] {
+            display: none !important;
+        }
+        
+        /* PULSANTI GIALLI RETTANGOLARI IDENTICI SITO */
+        .yellow-btn {
+            background: #ffcc00;
+            color: #000000;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        .yellow-btn:hover { background: #cca300; }
+
+        /* RIGA DEL MATCH (ORARIO, SQUADRE, BOTTONI ALLINEATI) */
+        .match-row {
+            display: flex;
+            align-items: center;
+            background: #141416;
+            padding: 14px 12px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .match-time {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #ffffff;
+            width: 55px;
+            flex-shrink: 0;
+        }
+        .match-details {
+            font-size: 0.9rem;
+            font-weight: bold;
+            flex-grow: 1;
+            color: #e5e5ea;
+            padding-right: 10px;
+        }
+        .match-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sezione superiore canali fissi -->
+    <div class="live-channels-box">
+        <div class="box-header">Live 00:00</div>
+        <div class="box-title">Live</div>
+        <div id="global-channels-container" class="channels-grid">Caricamento canali in corso...</div>
+    </div>
+
+    <!-- Contenitore del palinsesto giornaliero -->
+    <div id="schedule-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const backendUrl = urlParams.get('server') || 'https://sport-backend-38gv.onrender.com';
+                
+                const response = await fetch(`${backendUrl}/channels?token=MioCodiceSegreto123!`);
+                const data = await response.json();
+                
+                // Render griglia in alto
+                const gridContainer = document.getElementById('global-channels-container');
+                gridContainer.innerHTML = '';
+                
+                data.global_channels.forEach(ch => {
+                    const btn = document.createElement('button');
+                    btn.classList.add('yellow-btn');
+                    btn.textContent = ch.title;
+                    
+                    let targetPage = ch.url;
+                    if (ch.url.includes('?url=')) {
+                        const parsedUrl = new URL(ch.url, window.location.origin);
+                        targetPage = parsedUrl.searchParams.get('url') || ch.url;
+                    }
+                    
+                    const cleanPath = targetPage.replace(/^\//, '');
+                    const fullUrl = cleanPath.startsWith('http') ? cleanPath : "https://htsport.info/" + cleanPath;
+
+
+                    
+                    btn.onclick = () => window.open(fullUrl, '_blank');
+                    gridContainer.appendChild(btn);
+                });
+                
+                // Render palinsesto organizzato per le partite
+                const scheduleContainer = document.getElementById('schedule-container');
+                scheduleContainer.innerHTML = '';
+                
+                const leagues = {};
+                data.schedule.forEach(item => {
+                    if (!leagues[item.league]) leagues[item.league] = [];
+                    leagues[item.league].push(item);
+                });
+                
+                for (const leagueName in leagues) {
+                    const titleDiv = document.createElement('div');
+                    titleDiv.classList.add('league-header');
+                    titleDiv.textContent = leagueName;
+                    
+                    if (leagueName.length > 100) {
+                        titleDiv.setAttribute('data-length', 'long');
+                    }
+                    
+                    scheduleContainer.appendChild(titleDiv);
+                    
+                    leagues[leagueName].forEach(match => {
+                        const row = document.createElement('div');
+                        row.classList.add('match-row');
+                        
+                        const timeDiv = document.createElement('div');
+                        timeDiv.classList.add('match-time');
+                        timeDiv.textContent = match.time;
+                        
+                        const detailsDiv = document.createElement('div');
+                        detailsDiv.classList.add('match-details');
+                        detailsDiv.textContent = match.match;
+                        
+                        const btnsDiv = document.createElement('div');
+                        btnsDiv.classList.add('match-buttons');
+                        
+                        match.videos.forEach(v => {
+                            const btn = document.createElement('button');
+                            btn.classList.add('yellow-btn');
+                            btn.textContent = v.title;
+                            
+                            let targetPage = v.url;
+                            if (v.url.includes('?url=')) {
+                                const parsedUrl = new URL(v.url, window.location.origin);
+                                targetPage = parsedUrl.searchParams.get('url') || v.url;
+                            }
+                            
+                            const cleanPath = targetPage.replace(/^\//, '');
+                            const fullUrl = cleanPath.startsWith('http') ? cleanPath : "https://htsport.info/" + cleanPath;
+                            
+                            btn.onclick = () => window.open(fullUrl, '_blank');
+                            btnsDiv.appendChild(btn);
+                        });
+                        
+                        row.appendChild(timeDiv);
+                        row.appendChild(detailsDiv);
+                        row.appendChild(btnsDiv);
+                        scheduleContainer.appendChild(row);
+                    });
+                }
+            } catch (error) {
+                console.error("Errore caricamento dati:", error);
+                document.getElementById('global-channels-container').innerHTML = "Errore di connessione al backend remoto.";
+            }
+        });
+    </script>
+</body>
+</html>
